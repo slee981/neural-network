@@ -95,10 +95,6 @@ function sgd!(net::Network, x::Array{Float64,2}, y::Array{Float64,2}, batchsize:
 
                 # feedforward
                 out = feedforward!(net, xi);
-                @info "output: " icol
-                println(xi)
-                println("guess: ", out)
-                println("true : ", ytrue)
 
                 # calculate loss 
                 iloss = net.cost(out, ytrue);
@@ -130,7 +126,7 @@ function sgd!(net::Network, x::Array{Float64,2}, y::Array{Float64,2}, batchsize:
 end
 
 function plotloss(lossvalues::Array{Float64,1}; enter2close=false)
-    p = plot(lossvalues, legend = false);
+    p = plot(lossvalues, legend=false);
     gui(p);
     if enter2close
         println("\nPress 'Enter' to close the plot:");
