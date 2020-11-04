@@ -1,12 +1,11 @@
 include("./NeuralNet.jl")
 include("./NeuralNetHelpers.jl")
 
-using Random: randn
+using Random: randn, shuffle
 using .NeuralNet, .NeuralNetHelpers
 
 # data 
-#
-# zero and one outcome var 
+
 n = 10000 
 
 c  = ones(n, 1)
@@ -25,22 +24,28 @@ y    = yhat .> 0
 Y = Float64.(y)
 X = hcat(c, x1, x2)
 
+# test and training 
+trainpct = 0.8
+ntrain = Int(n * trainpct)
+
+shuffledrows = shuffle(1:n)
+trainrows = shuffledrows[1:ntrain]
+testrows = shuffledrows[ ntrain + 1:end]
+
+xtrain = X[trainrows, :]
+ytrain = Y[trainrows, :]
+xtest  = X[testrows , :]
+ytest  = Y[testrows , :]
+
 # setup network 
 net = Network(inputdim=3, cost=loss, dcost=dloss)
-# addlayer!(net, 16, relu, drelu) 
-# addlayer!(net, 32, relu, drelu) 
-addlayer!(net, 8, sigmoid, dsigmoid) 
 addlayer!(net, 16, sigmoid, dsigmoid) 
+addlayer!(net, 32, sigmoid, dsigmoid) 
 addlayer!(net, 4, sigmoid, dsigmoid) 
 addlayer!(net, 1, sigmoid, dsigmoid) 
 
 # fit network - stochastic gradient descent 
-#
-# 1- get minibatches 
-# 2- for each batch in minibatch 
-#    >> feedforward 
-#    >> backpropagate 
-fit!(net, X, Y, batchsize=16, epochs=16, learningrate=0.05)
+fit!(net, X, Y, batchsize=4, epochs=16, learningrate=0.1)
 
 # check predictions
 # predict(net, X)
