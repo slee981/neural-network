@@ -170,6 +170,8 @@ function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
         layer     = net.layers[end - i]      # layer "l"
         nextlayer = net.layers[end - i + 1]  # nextlayer "l + 1"
 
+        # select the output of the previous layer
+        # note, for the first layer this will be the original input, xi
         if (i + 1 < length(net.layers))
             prevout = net.layers[end - i - 1].activated_out
         elseif (i + 1 == length(net.layers))
