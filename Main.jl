@@ -6,7 +6,7 @@ using .NeuralNet, .NeuralNetHelpers
 
 # data 
 
-n = 10000 
+n = 10000
 
 c  = ones(n, 1)
 x1 = [i / 1000 for i = 1:n]
@@ -19,9 +19,8 @@ u = randn(n, 1)
 # yhat = 4 + 2 * x1 - 3 * x2
 # y    = yhat > mean(yhat) 
 yhat = 4 * c + 2 * x1 - 10 * x2 + u
-y    = yhat .> 0
 
-Y = Float64.(y)
+Y = yhat .> 0
 X = hcat(c, x1, x2)
 
 # test and training 
@@ -40,7 +39,7 @@ ytest  = Y[testrows , :]
 # setup network 
 net = Network(inputdim=3, cost=loss, dcost=dloss)
 addlayer!(net, 16, sigmoid, dsigmoid) 
-addlayer!(net, 32, sigmoid, dsigmoid) 
+addlayer!(net, 64, sigmoid, dsigmoid) 
 addlayer!(net, 4, sigmoid, dsigmoid) 
 addlayer!(net, 1, sigmoid, dsigmoid) 
 

@@ -4,8 +4,8 @@ using LinearAlgebra, Random, Statistics, Logging, Plots
 export Network, addlayer!, fit!
 
 mutable struct Layer
-    weights::Array{Float64,2}
-    bias::Array{Float64,2}
+    weights::AbstractMatrix
+    bias::AbstractMatrix
 
     # each layer can have its own activation function
     activation::Function
@@ -14,15 +14,15 @@ mutable struct Layer
     # cache 
     # 1- the last linear transformation z = Ax + b
     # 2- activated output = activation(z) 
-    linear_out::Array{Float64,2}
-    activated_out::Array{Float64,2}
+    linear_out::AbstractMatrix
+    activated_out::AbstractMatrix
 
     # keep track of partial derivative error for each batch 
-    dC_dlinear::Array{Float64,2} 
-    dC_dweights::Array{Float64,2} 
-    dC_dbias::Array{Float64,2} 
+    dC_dlinear::AbstractMatrix 
+    dC_dweights::AbstractMatrix 
+    dC_dbias::AbstractMatrix 
 
-    function Layer(insize::Int64, outsize::Int64, activation::Function, dactivation::Function)
+    function Layer(insize::Number, outsize::Number, activation::Function, dactivation::Function)
         weights = randn(outsize, insize)
         bias = randn(outsize, 1)
 
@@ -38,7 +38,7 @@ end
 
 mutable struct Network 
     inputdim::Int16
-    layers::Array{Layer,1}
+    layers::Vector{Layer}
     cost::Function
     dcost::Function
 
@@ -47,18 +47,18 @@ mutable struct Network
     end
 end
 
-function addlayer!(net::Network, outsize::Int64, activation::Function, dactivation::Function)
+function addlayer!(net::Network, outsize::Number, activation::Function, dactivation::Function)
     if length(net.layers) == 0
         insize = net.inputdim
     else 
         lastlayer = net.layers[end]
         insize = size(lastlayer.weights, 1)     # num rows in previous output
     end
-    layer = Layer(Int64(insize), outsize, activation, dactivation)
+    layer = Layer(Number(insize), outsize, activation, dactivation)
     push!(net.layers, layer)
 end
 
-function fit!(net::Network, x::Array{Float64,2}, y::Array{Float64,2}; batchsize=1, epochs=2, learningrate=0.5)
+function fit!(net::Network, x::AbstractMatrix, y::AbstractMatrix; batchsize=1, epochs=2, learningrate=0.5)
     # input
     #     ~ net : neural network to fit 
     #     ~ x   : input args with variables in columns, observation in rows   
@@ -66,10 +66,10 @@ function fit!(net::Network, x::Array{Float64,2}, y::Array{Float64,2}; batchsize=
     sgd!(net, x, y, batchsize, epochs, learningrate)
 end
 
-function sgd!(net::Network, x::Array{Float64,2}, y::Array{Float64,2}, batchsize::Int64, epochs::Int64, learningrate::Float64)
+function sgd!(net::Network, x::AbstractMatrix, y::AbstractMatrix, batchsize::Number, epochs::Number, learningrate::Number)
     # stochastic gradient descent (sgd)
 
-    lossvals = Vector{Float64}()
+    lossvals = Vector{Number}()
     for epoch = 1:epochs
 
         # shuffle rows of matrix  
@@ -125,7 +125,7 @@ function sgd!(net::Network, x::Array{Float64,2}, y::Array{Float64,2}, batchsize:
     plotloss(lossvals, enter2close=true)
 end
 
-function plotloss(lossvalues::Array{Float64,1}; enter2close=false)
+function plotloss(lossvalues::Vector{Number}; enter2close=false)
     p = plot(lossvalues, legend=false)
     gui(p)
     if enter2close
@@ -134,7 +134,7 @@ function plotloss(lossvalues::Array{Float64,1}; enter2close=false)
     end
 end
 
-function update!(net::Network, batchsize::Int64, learningrate::Float64)
+function update!(net::Network, batchsize::Number, learningrate::Number)
 
     # update weights in each layer based on the error terms dC_dweights, dC_dbias
     for i = 1:length(net.layers)
@@ -152,7 +152,7 @@ function update!(net::Network, batchsize::Int64, learningrate::Float64)
     end
 end
 
-function calcpartials!(net::Network, x::Array{Float64,2}, truth::Array{Float64,2})
+function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
 
     # calculate last layer partials (i.e. deltas)
     # wrt the linear transformation z = Ax + b
@@ -184,13 +184,13 @@ function calcpartials!(net::Network, x::Array{Float64,2}, truth::Array{Float64,2
     end
 end
 
-function backpropagate!(net::Network, x::Array{Float64,2}, truth::Array{Float64,2})
+function backpropagate!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
 
     # use chain rule to calculate partial derivatives     
     calcpartials!(net, x, truth)
 end
 
-function feedforward!(net::Network, input::Array{Float64,2})::Array{Float64,2}
+function feedforward!(net::Network, input::AbstractMatrix)::AbstractMatrix
     nlayers = length(net.layers)
 
     lastoutput = input 
