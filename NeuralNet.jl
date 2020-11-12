@@ -1,6 +1,7 @@
 module NeuralNet
 
-using LinearAlgebra, Random, Statistics, Logging, Plots
+using LinearAlgebra, Random, Statistics, Logging, Plots, ProgressMeter
+
 export Network, addlayer!, fit!
 
 mutable struct Layer
@@ -23,8 +24,11 @@ mutable struct Layer
     dC_dbias::AbstractMatrix 
 
     function Layer(insize::Number, outsize::Number, activation::Function, dactivation::Function)
-        weights = randn(outsize, insize)
-        bias = randn(outsize, 1)
+        # control initial weights by choosing variance = 2 / maxinput 
+        # for more, see page 378 in Learning from Data by Strang
+        sigma_sq = sqrt(2 / (insize + outsize))
+        weights = randn(outsize, insize) * sigma_sq
+        bias = randn(outsize, 1) * sigma_sq
 
         linear_out = zeros(outsize, 1)
         activated_out = zeros(outsize, 1)
@@ -58,7 +62,7 @@ function addlayer!(net::Network, outsize::Number, activation::Function, dactivat
     push!(net.layers, layer)
 end
 
-function fit!(net::Network, x::AbstractMatrix, y::AbstractMatrix; batchsize=1, epochs=2, learningrate=0.5)
+function fit!(net::Network, x::AbstractMatrix, y::AbstractMatrix; batchsize=1, epochs=2, learningrate=0.1)
     # input
     #     ~ net : neural network to fit 
     #     ~ x   : input args with variables in columns, observation in rows   
@@ -69,18 +73,25 @@ end
 function sgd!(net::Network, x::AbstractMatrix, y::AbstractMatrix, batchsize::Number, epochs::Number, learningrate::Number)
     # stochastic gradient descent (sgd)
 
-    lossvals = Vector{Number}()
+    # input vars
+    nobs, nvars = size(x)
+
+    # progress info
+    epochlosses = Vector{Number}()
     for epoch = 1:epochs
 
         # shuffle rows of matrix  
-        nobs, nvars = size(x)
         shuffledrows = shuffle(1:nobs)
         x = x[shuffledrows, :]
         y = y[shuffledrows, :]
 
+        # average losses for each sample in batch
+        losses = Vector{Number}();
+
         # create mini batches and loop through each batch 
         # note: julia is NOT zero indexed 
         #       i.e. x[1] is the first element
+        p = Progress(nobs, barglyphs=BarGlyphs("[=> ]"), desc="Epoch $(epoch): ")
         for batchend = batchsize:batchsize:nobs
             batchstart = batchend - batchsize + 1
 
@@ -89,8 +100,6 @@ function sgd!(net::Network, x::AbstractMatrix, y::AbstractMatrix, batchsize::Num
             xbatch = x[batchstart:batchend, :]'
             ybatch = y[batchstart:batchend, :]'
 
-            # average losses for each sample in batch
-            losses = zeros(size(ybatch))
             for icol in 1:batchsize
                 xi    = xbatch[:, icol:icol]
                 ytrue = ybatch[:, icol:icol]
@@ -102,27 +111,25 @@ function sgd!(net::Network, x::AbstractMatrix, y::AbstractMatrix, batchsize::Num
                 iloss = net.cost(out, ytrue)
 
                 # store loss for later average
-                losses[:, icol:icol] = iloss
+                push!(losses, mean(iloss))
 
                 # calculate partial derivatives of each weight and bias
                 # i.e. backpropagate
                 backpropagate!(net, xi, ytrue)
             end
-
-            if batchend % 100 == 0 
-
-                # sample average loss from batch to plot 
-                meanloss = mean(losses)
-                push!(lossvals, meanloss)
-            
-                plotloss(lossvals)
-            end
+            ProgressMeter.update!(p, batchend, desc="Epoch $(epoch) - Loss: $(round(mean(losses), digits=2)) ")
 
             # update weights and bias 
-            update!(net, batchsize, learningrate)
+            update!(net, learningrate)
         end
+
+        # sample average loss from batch to plot 
+        meanloss = mean(losses)
+        push!(epochlosses, meanloss)
+    
+        plotloss(epochlosses)
     end
-    plotloss(lossvals, enter2close=true)
+    plotloss(epochlosses, enter2close=true)
 end
 
 function plotloss(lossvalues::Vector{Number}; enter2close=false)
@@ -134,14 +141,14 @@ function plotloss(lossvalues::Vector{Number}; enter2close=false)
     end
 end
 
-function update!(net::Network, batchsize::Number, learningrate::Number)
+function update!(net::Network, learningrate::Number)
 
     # update weights in each layer based on the error terms dC_dweights, dC_dbias
     for i = 1:length(net.layers)
         layer = net.layers[i]
 
-        layer.weights -= learningrate / batchsize * layer.dC_dweights
-        layer.bias    -= learningrate / batchsize * layer.dC_dbias
+        layer.weights -= learningrate * layer.dC_dweights
+        layer.bias    -= learningrate * layer.dC_dbias
 
         # reset the error terms for next batch 
         nrows, ncols = size(layer.weights)
@@ -156,11 +163,9 @@ function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
 
     # calculate last layer partials (i.e. deltas)
     # wrt the linear transformation z = Ax + b
-    # thus, 
-    # dc/dzL = dloss(output) * dactivation(z)
     lastlayer = net.layers[end]
 
-    lastlayer.dC_dlinear   = net.dcost(lastlayer.activated_out, truth) .* lastlayer.dactivation(lastlayer.linear_out)
+    lastlayer.dC_dlinear   = lastlayer.dactivation(lastlayer.linear_out) * net.dcost(lastlayer.activated_out, truth)
     lastlayer.dC_dweights += lastlayer.dC_dlinear * net.layers[end - 1].activated_out'
     lastlayer.dC_dbias    += lastlayer.dC_dlinear
 
@@ -180,7 +185,7 @@ function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
             throw(DomainError(i, "counter i is out of bounds"))
         end
 
-        layer.dC_dlinear   = ( nextlayer.weights' * nextlayer.dC_dlinear ) .* layer.dactivation(layer.linear_out)
+        layer.dC_dlinear   = layer.dactivation(layer.linear_out) * nextlayer.weights' * nextlayer.dC_dlinear 
         layer.dC_dweights += layer.dC_dlinear * prevout'
         layer.dC_dbias    += layer.dC_dlinear 
     end

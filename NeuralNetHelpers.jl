@@ -1,21 +1,35 @@
 module NeuralNetHelpers 
 
-export loss, dloss, sigmoid, dsigmoid, relu, drelu
+using LinearAlgebra
 
-function loss(output::Number, truth::Number)::Number
-    return (output - truth)^2
+export loss_mse, 
+       dloss_mse, 
+       sigmoid, 
+       dsigmoid, 
+       relu, 
+       drelu, 
+       to_categorical, 
+       softmax, 
+       dsoftmax
+
+function loss_mse(output::Number, truth::Number)::Number
+    return 0.5 * (output - truth)^2
 end
 
-function loss(output::AbstractMatrix, truth::AbstractMatrix)::AbstractMatrix
-    return loss.(output, truth)    
+function loss_mse(output::AbstractMatrix, truth::AbstractMatrix)::AbstractMatrix
+    # we want to return a scalar valued loss i.e. not a vector 
+    # first, take the pairwise mean squared error loss
+    # second, sum across the column vector of losses 
+    loss_vec = loss_mse.(output, truth) 
+    return sum(loss_vec, dims=1)
 end
 
-function dloss(output::Number, truth::Number)::Number
+function dloss_mse(output::Number, truth::Number)::Number
     return output - truth
 end
 
-function dloss(output::AbstractMatrix, truth::AbstractMatrix)::AbstractMatrix
-    return dloss.(output, truth)
+function dloss_mse(output::AbstractMatrix, truth::AbstractMatrix)::AbstractMatrix
+    return dloss_mse.(output, truth)
 end
 
 function sigmoid(z::Number)::Number
@@ -23,11 +37,14 @@ function sigmoid(z::Number)::Number
 end
 
 function sigmoid(z::AbstractMatrix)::AbstractMatrix
-    return 1 ./ (1 .+ exp.(-z))
+    return sigmoid.(z)
 end
 
 function dsigmoid(z::AbstractMatrix)::AbstractMatrix
-    return sigmoid(z) .* (1 .- sigmoid(z))
+    # we want to return the full jacobian
+    # in this case a diagonal matric i.e. diagm
+    dvec = sigmoid(z) .* (1 .- sigmoid(z))
+    return diagm(dvec[:, 1])
 end
 
 function relu(z::AbstractMatrix)::AbstractMatrix
@@ -39,6 +56,55 @@ function drelu(z::Number)::Number
 end
 
 function drelu(z::AbstractMatrix)::AbstractMatrix
-    return drelu.(z)
+    # we want to return the jacobian
+    # in this case a diagonal matric i.e. diagm
+    dvec = drelu.(z)
+    return diagm(dvec[:, 1])
+end
+
+function softmax(z::AbstractMatrix)::AbstractMatrix
+    shift = maximum(z)
+
+    z = exp.(z .- shift)
+    total = sum(z)
+    return z ./ total
+end
+
+function dsoftmax(z::AbstractMatrix)::AbstractMatrix
+    # dsoftmax / dz should return a jacobian matrix 
+    #
+    # see here for explanation:
+    # https://datascience.stackexchange.com/questions/51677/derivation-of-backpropagation-for-softmax 
+    n = length(z)
+
+    eye = Matrix{Number}(I, n, n)
+    w   = softmax(z)
+    e   = ones(n, 1)
+
+    return w * e' .* (eye - e * w')
+end
+
+function to_categorical(v::Vector)::AbstractMatrix
+    # input : vector of categorical vars e.g. [1, 3, 5, 2, 0, ...]
+    # output: matrix of one hot obvs
+    max = maximum(v)
+    min = minimum(v)  # is zero included? 
+    nobvs = length(v)
+
+    # create zeros matrix of placeholder 
+    # note, observations in the rows
+    if min == 0
+        # increment every element up one since julia isn't 0-indexed
+        v .+= 1
+        onehotmat = zeros(nobvs, max + 1)
+    else 
+        onehotmat = zeros(nobvs, max)
+    end
+
+    for i = 1:length(v)
+        ele = v[i]
+        onehotmat[i, ele] = 1
+    end
+    return onehotmat
 end
 end
