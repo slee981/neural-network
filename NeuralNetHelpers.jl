@@ -1,6 +1,5 @@
 module NeuralNetHelpers 
-
-using LinearAlgebra
+using LinearAlgebra, Statistics
 
 export loss_mse, 
        dloss_mse, 
@@ -17,11 +16,11 @@ function loss_mse(output::Number, truth::Number)::Number
 end
 
 function loss_mse(output::AbstractMatrix, truth::AbstractMatrix)::AbstractMatrix
-    # we want to return a scalar valued loss i.e. not a vector 
+    # we want to return a scalar valued loss i.e. a "reduction"
     # first, take the pairwise mean squared error loss
-    # second, sum across the column vector of losses 
+    # second, mean across the column vector of losses 
     loss_vec = loss_mse.(output, truth) 
-    return sum(loss_vec, dims=1)
+    return mean(loss_vec, dims = 1)
 end
 
 function dloss_mse(output::Number, truth::Number)::Number

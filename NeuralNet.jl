@@ -1,6 +1,5 @@
 module NeuralNet
-
-using LinearAlgebra, Random, Statistics, Logging, Plots, ProgressMeter
+using LinearAlgebra, Statistics, Random, Logging, Plots, ProgressMeter
 
 export Network, addlayer!, fit!
 
@@ -24,9 +23,11 @@ mutable struct Layer
     dC_dbias::AbstractMatrix 
 
     function Layer(insize::Number, outsize::Number, activation::Function, dactivation::Function)
-        # control initial weights by choosing variance = 2 / maxinput 
-        # for more, see page 378 in Learning from Data by Strang
-        sigma_sq = sqrt(2 / (insize + outsize))
+        # the Glorot normal initializer, also called Xavier normal initializer
+        #
+        # reference: 
+        # https://github.com/tensorflow/tensorflow/blob/master/tensorflow/python/keras/initializers/initializers_v2.py
+        sigma_sq = 2 / (insize + outsize)
         weights = randn(outsize, insize) * sigma_sq
         bias = randn(outsize, 1) * sigma_sq
 
@@ -177,12 +178,10 @@ function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
 
         # select the output of the previous layer
         # note, for the first layer this will be the original input, xi
-        if (i + 1 < length(net.layers))
+        if i + 1 < length(net.layers)
             prevout = net.layers[end - i - 1].activated_out
-        elseif (i + 1 == length(net.layers))
+        elseif i + 1 == length(net.layers)
             prevout = x
-        else
-            throw(DomainError(i, "counter i is out of bounds"))
         end
 
         layer.dC_dlinear   = layer.dactivation(layer.linear_out) * nextlayer.weights' * nextlayer.dC_dlinear 
