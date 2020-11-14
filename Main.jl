@@ -39,7 +39,7 @@ addlayer!(net, 32, relu, drelu)
 addlayer!(net, output_size, softmax, dsoftmax) 
 
 # fit network - stochastic gradient descent 
-fit!(net, X_train, Y_train, batchsize=32, epochs=8, learningrate=0.01)
+fit!(net, X_train, Y_train, batchsize=16, epochs=10, learningrate=0.01)
 
 #############################################################################
 # EXAMPLE 2 - SIMULATION ON KNOWN DATA GENERATING PROCESS
