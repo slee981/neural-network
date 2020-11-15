@@ -4,8 +4,8 @@ using LinearAlgebra, Statistics, Random, Logging, Plots, ProgressMeter
 export Network, addlayer!, fit!
 
 mutable struct Layer
-    weights::AbstractMatrix
-    bias::AbstractMatrix
+    weights::AbstractArray
+    bias::AbstractArray
 
     # each layer can have its own activation function
     activation::Function
@@ -14,13 +14,13 @@ mutable struct Layer
     # cache 
     # 1- the last linear transformation z = Ax + b
     # 2- activated output = activation(z) 
-    linear_out::AbstractMatrix
-    activated_out::AbstractMatrix
+    linear_out::AbstractArray
+    activated_out::AbstractArray
 
     # keep track of partial derivative error for each batch 
-    dC_dlinear::AbstractMatrix 
-    dC_dweights::AbstractMatrix 
-    dC_dbias::AbstractMatrix 
+    dC_dlinear::AbstractArray 
+    dC_dweights::AbstractArray 
+    dC_dbias::AbstractArray 
 
     function Layer(insize::Number, outsize::Number, activation::Function, dactivation::Function)
         # the Glorot normal initializer, also called Xavier normal initializer
@@ -63,7 +63,7 @@ function addlayer!(net::Network, outsize::Number, activation::Function, dactivat
     push!(net.layers, layer)
 end
 
-function fit!(net::Network, x::AbstractMatrix, y::AbstractMatrix; batchsize=1, epochs=2, learningrate=0.1)
+function fit!(net::Network, x::AbstractArray, y::AbstractArray; batchsize=1, epochs=2, learningrate=0.1)
     # input
     #     ~ net : neural network to fit 
     #     ~ x   : input args with variables in columns, observation in rows   
@@ -71,7 +71,7 @@ function fit!(net::Network, x::AbstractMatrix, y::AbstractMatrix; batchsize=1, e
     sgd!(net, x, y, batchsize, epochs, learningrate)
 end
 
-function sgd!(net::Network, x::AbstractMatrix, y::AbstractMatrix, batchsize::Number, epochs::Number, learningrate::Number)
+function sgd!(net::Network, x::AbstractArray, y::AbstractArray, batchsize::Number, epochs::Number, learningrate::Number)
     # stochastic gradient descent (sgd)
 
     # input vars
@@ -160,7 +160,7 @@ function update!(net::Network, learningrate::Number)
     end
 end
 
-function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
+function calcpartials!(net::Network, x::AbstractArray, truth::AbstractArray)
 
     # calculate last layer partials (i.e. deltas)
     # wrt the linear transformation z = Ax + b
@@ -190,13 +190,13 @@ function calcpartials!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
     end
 end
 
-function backpropagate!(net::Network, x::AbstractMatrix, truth::AbstractMatrix)
+function backpropagate!(net::Network, x::AbstractArray, truth::AbstractArray)
 
     # use chain rule to calculate partial derivatives     
     calcpartials!(net, x, truth)
 end
 
-function feedforward!(net::Network, input::AbstractMatrix)::AbstractMatrix
+function feedforward!(net::Network, input::AbstractArray)::AbstractArray
     nlayers = length(net.layers)
 
     lastoutput = input 
